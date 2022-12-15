@@ -1,15 +1,12 @@
 clear all; close all;
 
-debug_version = 0;
-print_result = 0;
-
 Lx = 1.0; Ly = 1.0; Re=100;               % domain size and reynolds number
 unorth=1.0; usouth=0; veast=0; vwest=0;   % boundary conditions
 
 time=0.0; plot_freq = 100;
 
-nx=100; ny=100; dx=Lx/nx; dy=Ly/ny; dt=0.0006;            % discretization   
-nstep=6000; maxit=500; maxError=0.001; omg=1.85;
+nx=3; ny=3; dx=Lx/nx; dy=Ly/ny; dt=0.0006;            % discretization   
+nstep=1; maxit=500; maxError=0.001; omg=1.85;
 
 u  = zeros(nx+1,ny+2); ut   = u; uplot = zeros(nx+1,ny+1); % x-vel arrays
 v  = zeros(nx+2,ny+1); vt   = v; vplot = zeros(nx+1,ny+1); % y-vel arrays
@@ -36,37 +33,9 @@ for is=1:nstep
                    + dt/Re*( (v(i+1,j)-2*v(i,j)+v(i-1,j))/dx^2+(v(i,j+1)-2*v(i,j)+v(i,j-1))/dy^2 ) ;    
  end; end   
 
-% fprintf("----- Ut-Velocity --------\n")
-% for i=1:nx+1
-%     for j=1:ny+2
-%         fprintf("%.16f ",ut(i,j));
-%     end
-%     fprintf("\n");
-% end
-% fprintf("\n");
-% 
-% fprintf("----- Vt-Velocity --------\n")
-% for i=1:nx+2
-%     for j=1:ny+1
-%         fprintf("%.16f ",vt(i,j));
-%     end
-%     fprintf("\n");
-% end
-% fprintf("\n");
-
  for i=2:nx+1; for j=2:ny+1
   tmp1(i,j) = 0.5/dt*( (ut(i,j)-ut(i-1,j))/dx + (vt(i,j)-vt(i,j-1))/dy );
  end; end
-
-%  fprintf("----- TMP1 --------\n")
-% for i=1:nx+2
-%     for j=1:ny+2
-%         fprintf("%.16f ",tmp1(i,j));
-%     end
-%     fprintf("\n");
-% end
-% fprintf("\n");
-
  tmp2 = 1/(1/dx/dx + 1/dy/dy);
 
  for it=1:maxit	            % solve for pressure by SOR
@@ -78,6 +47,8 @@ for is=1:nstep
    end; end
    if max(max(abs(pold-p))) < maxError, break, end
  end
+
+ %fprintf("The number of iteration for nstep %d is: %d\n",is,it);
                                       
  for i=2:nx; for j=2:ny+1   % correct the u-velocity 
   u(i,j) = ut(i,j) - dt/dx*( p(i+1,j) - p(i,j) );
@@ -86,38 +57,6 @@ for is=1:nstep
  for i=2:nx+1; for j=2:ny   % correct the v-velocity
   v(i,j) = vt(i,j) - dt/dy*( p(i,j+1) - p(i,j) );
  end; end
-
-if(debug_version == 1)
-    fprintf("The number of iteration for nstep %d is: %d\n",is,it);
-    if((is == nstep) && (print_result == 1))
-        fprintf("----- Pressure --------\n")
-        for i=1:nx+2
-            for j=1:ny+2
-                fprintf("%.16f ",p(i,j));
-            end
-            fprintf("\n");
-        end
-        fprintf("\n");
-    end
-end
-
-% fprintf("----- U-Velocity --------\n")
-% for i=1:nx+1
-%     for j=1:ny+2
-%         fprintf("%.16f ",u(i,j));
-%     end
-%     fprintf("\n");
-% end
-% fprintf("\n");
-% 
-% fprintf("----- V-Velocity --------\n")
-% for i=1:nx+2
-%     for j=1:ny+1
-%         fprintf("%.16f ",v(i,j));
-%     end
-%     fprintf("\n");
-% end
-% fprintf("\n");
 
  time=time+dt;              
  
@@ -133,6 +72,10 @@ end
 end % End of time step
 
 tEnd = toc(tStart);
-fprintf("The time taken is: %.16f\n",tEnd);
-fprintf("\n\n");
+fprintf("The time taken is: %f\n",tEnd);
+i_tmp = floor((nx+2)/2);
+j_tmp = floor((ny+2)/2);
+fprintf("The value of P(%d,%d) is: %f\n",i_tmp,j_tmp,p(i_tmp,j_tmp));
 
+for i=1:nx+1
+    for

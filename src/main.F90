@@ -6,11 +6,11 @@ Program Main
 	
 	integer :: nx,ny,nstep,maxIt,plot_freq
 	Real :: Lx,Ly,Re,u_north,u_south,v_east,v_west
-	Real :: time,dx,dy,dt,maxError,omega,tmp2,error
+	Real :: time,dx,dy,dt,tol,omega,tmp2,errorMax,t1,t2
 	
-	integer :: is,i,j,it
+	integer :: is,i,j,it,debug_version,print_result
 	
-	Real,Allocatable,Dimension(:,:) :: u,v,p,ut,vt,pold,uplot,vplot,tmp1
+	Real(kind=8),Allocatable,Dimension(:,:) :: u,v,p,ut,vt,pold,uplot,vplot,tmp1,error
 	Real,Allocatable,Dimension(:) :: x,y
 	
 ! Set-up the problem constants and parameters
@@ -26,17 +26,20 @@ Program Main
 	time = 0.0
 	plot_freq = 100
 	
-	nx = 500
-	ny = 500
+	nx = 100
+	ny = 100
 	dx = Lx/nx
 	dy = Ly/ny
 	
-	dt = 6e-04
-	nstep = 50
+	dt = 0.0006
+	nstep = 6000
 	
 	maxIt = 500
-	maxError = 0.1
+	tol = 0.001
 	omega = 1.85
+	
+	debug_version = 0
+	print_result = 0
 	
 ! Allocate the main and supporting variables
 	Allocate(u(nx+1,ny+2))
@@ -50,6 +53,7 @@ Program Main
 	Allocate(p(nx+2,ny+2))
 	Allocate(pold(nx+2,ny+2))
 	Allocate(tmp1(nx+2,ny+2))
+	Allocate(error(nx+2,ny+2))
 	
 	Allocate(x(nx+1))
 	Allocate(y(ny+1))
@@ -72,29 +76,37 @@ Program Main
 	 
 	p = 0.0
 	tmp1 = 0.0
-	 
+	
+! start time
+	Call CPU_TIME(t1)
+	
 ! Starting the time loop
 	Do is=1,nstep
 	
 	! Set Tangential Velocity BC's
-		u(:,1) = 2*u_south - u(:,2)
-		u(:,ny+2) = 2*u_north - u(:,ny+1)
-		v(1,:) = 2*v_west - v(2,:)
-		v(nx+2,:) = 2*v_east - v(nx+1,:)
-	
+		Do i=1,nx+1
+			u(i,1) = 2*u_south - u(i,2)
+			u(i,ny+2) = 2*u_north - u(i,ny+1)
+		Enddo
+		
+		Do j=1,ny+1
+			v(1,j) = 2*v_west - v(2,j)
+			v(nx+2,j) = 2*v_east - v(nx+1,j)
+		Enddo
+		
 	! Calculate temproary u-velocity
 		Do i=2,nx
 			Do j=2,ny+1
-				ut(i,j) = u(i,j) - dt*0.25/dx*( (u(i+1,j)+u(i,j))**2 -(u(i,j)+u(i-1,j))**2 )&
-								&- dt*0.25/dx*( (u(i,j+1)+u(i,j))*(v(i+1,j)+v(i,j)) - (u(i,j)+u(i,j-1))*(v(i+1,j-1)+v(i,j-1)) )&
-								&+ dt/Re*( (u(i+1,j)-2*u(i,j)+u(i-1,j))/dx**2+ (u(i,j+1)-2*u(i,j)+u(i,j-1))/dy**2)
+				ut(i,j) = u(i,j) - dt*(0.25/dx)*( (u(i+1,j)+u(i,j))**2 -(u(i,j)+u(i-1,j))**2 )&
+								&- dt*(0.25/dx)*( (u(i,j+1)+u(i,j))*(v(i+1,j)+v(i,j)) - (u(i,j)+u(i,j-1))*(v(i+1,j-1)+v(i,j-1)) )&
+								&+ (dt/Re)*( (u(i+1,j)-2*u(i,j)+u(i-1,j))/(dx**2) + (u(i,j+1)-2*u(i,j)+u(i,j-1))/(dy**2))
 			Enddo
 		Enddo
 		
 		! Calculate temproary v-velocity
 		Do i=2,nx+1
 			Do j=2,ny
-				vt = v(i,j) - dt*0.25/dx*( (u(i,j)+u(i,j+1))*(v(i,j)+v(i+1,j)) - (u(i-1,j+1)+u(i-1,j))*(v(i,j)+v(i-1,j)) )&
+				vt(i,j) = v(i,j) - dt*0.25/dx*( (u(i,j)+u(i,j+1))*(v(i,j)+v(i+1,j)) - (u(i-1,j+1)+u(i-1,j))*(v(i,j)+v(i-1,j)) )&
 						   &- dt*0.25/dy*( (v(i,j+1)+v(i,j))**2-(v(i,j)+v(i,j-1))**2 )&
 						   &+ dt/Re*( (v(i+1,j)-2*v(i,j)+v(i-1,j))/dx**2+(v(i,j+1)-2*v(i,j)+v(i,j-1))/dy**2 )
 		    Enddo
@@ -126,34 +138,42 @@ Program Main
 				Enddo
 			Enddo
 		
-		! Calculate error to stop iterations
-			error = 0.0
-			Do i=1,nx+2
-				Do j=1,ny+2
-					if(abs(p(i,j) - pold(i,j)) > error) error = abs(p(i,j) - pold(i,j))
-				Enddo
-			Enddo
-			if( error < maxError) EXIT
+		! Calculate error to stop iterations			
+			error(:,:) = ABS(p(:,:) - pold(:,:))
+			errorMax = MAXVAL(error)
+			if(errorMax <= tol) EXIT
 			
 		Enddo
 		
 	! Correct the u-velocity
 		Do i=2,nx
 			Do j=2,ny+1
-				u(i,j) = ut(i,j) - dt/dx *(p(i+1,j) - p(i,j))
+				u(i,j) = ut(i,j) - ((dt/dx) *(p(i+1,j) - p(i,j)))
 			Enddo
 		Enddo
 		
 	! Correct the v-velocity
 		Do i=2,nx+1
 			Do j=2,ny
-				v(i,j) = vt(i,j) - dt/dy *(p(i,j+1) - p(i,j))
+				v(i,j) = vt(i,j) - ((dt/dy) *(p(i,j+1) - p(i,j)))
 			Enddo
 		Enddo
 		
 		time = time + dt
 		
+		if(debug_version .EQ. 1) then
+			write(6,'(a,I0,a,I0)') "The number of iteration for nstep ",is," is: ",it
+			if((is .EQ. nstep) .AND. (print_result .EQ. 1)) Call print_variable(p,nx+2,ny+2,1,nx+2,1,ny+2,"Pressure")
+		Endif
+		
 	Enddo
+
+! start time
+	Call CPU_TIME(t2)
+	
+	write(6,'(a,F)') "The time taken to run the iterations are: ",t2-t1
+	write(6,'(a)') " "
+	write(6,'(a)') " "
 
 ! De-Allocate the main and supporitng variables
 	Deallocate(u)
@@ -167,8 +187,29 @@ Program Main
 	Deallocate(p)
 	Deallocate(pold)
 	Deallocate(tmp1)
+	Deallocate(error)
 	
 	Deallocate(x)
 	Deallocate(y)
 
 End Program
+
+Subroutine print_variable(k,npts_x,npts_y,x_start,x_end,y_start,y_end,k_name)
+
+	Integer,intent(in) :: npts_x,npts_y,x_start,x_end,y_start,y_end
+	Real(kind=8),dimension(npts_x,npts_y),intent(in) :: k
+	Character(len=500),intent(in) :: k_name 
+	Integer :: i,j
+	
+	write(6,'(a)') " "
+	write(6,'(a,a11,a)') "---------- Printing  ",TRIM(k_name)," ----------"
+	Do i=x_start,x_end
+		Do j=y_start,y_end
+			write(6,'(F,a)',advance="no") k(i,j)," "		
+		Enddo
+		write(6,'(a)') " "
+	Enddo
+	write(6,'(a,a11,a)') "---------- End Printing  ",TRIM(k_name)," ----------"
+	write(6,'(a)') " "
+
+End Subroutine
