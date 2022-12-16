@@ -26,8 +26,8 @@ Program Main
 	time = 0.0
 	plot_freq = 100
 	
-	nx = 100
-	ny = 100
+	nx = 200
+	ny = 200
 	dx = Lx/nx
 	dy = Ly/ny
 	
@@ -35,7 +35,7 @@ Program Main
 	nstep = 6000
 	
 	maxIt = 500
-	tol = 0.001
+	tol = 0.01
 	omega = 1.85
 	
 	debug_version = 0
@@ -168,13 +168,22 @@ Program Main
 		
 	Enddo
 
-! start time
+! End time
 	Call CPU_TIME(t2)
 	
-	write(6,'(a,F)') "The time taken to run the iterations are: ",t2-t1
-	write(6,'(a)') " "
-	write(6,'(a)') " "
+	Do i=1,nx+1
+		Do j=1,ny+1
+			uplot(i,j) = 0.5*(u(i,j+1) + u(i,j))
+			vplot(i,j) = 0.5*(v(i+1,j) + v(i,j))
+		Enddo
+	Enddo
 
+	write(6,'(a,F)') "The time taken to run the iterations are: ",t2-t1
+
+! Write plot velocities out to plot it in matlab
+	Call write_to_file(uplot,nx+1,ny+1,"uplot.csv")
+	Call write_to_file(vplot,nx+1,ny+1,"vplot.csv")
+	
 ! De-Allocate the main and supporitng variables
 	Deallocate(u)
 	Deallocate(ut)
@@ -213,3 +222,28 @@ Subroutine print_variable(k,npts_x,npts_y,x_start,x_end,y_start,y_end,k_name)
 	write(6,'(a)') " "
 
 End Subroutine
+
+subroutine write_to_file(k,npts_x,npts_y,k_name)
+
+	Integer,intent(in) :: npts_x,npts_y
+	Real(kind=8),dimension(npts_x,npts_y),intent(in) :: k
+	Character(len=500),intent(in) :: k_name
+	Character(len=500) file_name
+	
+	Open(unit=8,file=TRIM(k_name),status='replace')
+	Do i=1,npts_x
+		Do j=1,npts_y
+			If(j .NE. npts_y) then
+				write(8,'(F,a)',advance="no") k(i,j),","
+			Else
+				write(8,'(F)') k(i,j)
+			Endif
+		Enddo
+	Enddo
+	Close(8)
+	
+End subroutine
+	
+	
+	
+	

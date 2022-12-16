@@ -1,4 +1,5 @@
-clear all; close all;
+clear all; 
+close all;
 
 debug_version = 0;
 print_result = 0;
@@ -8,8 +9,8 @@ unorth=1.0; usouth=0; veast=0; vwest=0;   % boundary conditions
 
 time=0.0; plot_freq = 100;
 
-nx=100; ny=100; dx=Lx/nx; dy=Ly/ny; dt=0.0006;            % discretization   
-nstep=6000; maxit=500; maxError=0.001; omg=1.85;
+nx=250; ny=250; dx=Lx/nx; dy=Ly/ny; dt=0.0006;            % discretization   
+nstep=6000; maxit=500; maxError=0.1; omg=1.85;
 
 u  = zeros(nx+1,ny+2); ut   = u; uplot = zeros(nx+1,ny+1); % x-vel arrays
 v  = zeros(nx+2,ny+1); vt   = v; vplot = zeros(nx+1,ny+1); % y-vel arrays
@@ -120,19 +121,19 @@ end
 % fprintf("\n");
 
  time=time+dt;              
- 
-%  if (mod(is,plot_freq)==0) || (is==1) % plot solution
-%  %if (is== nstep)
-%  uplot(1:nx+1,1:ny+1)=0.5*(u(1:nx+1,2:ny+2)+u(1:nx+1,1:ny+1)); % uplot stores x-velocity at all points element corners 
-%  vplot(1:nx+1,1:ny+1)=0.5*(v(2:nx+2,1:ny+1)+v(1:nx+1,1:ny+1)); % vplot stores y-velocity at all points element corners
-%  figure(1); 
-%  vm = sqrt(uplot'.*uplot' + vplot'.*vplot'); 
-%  surf(x,y,vm,'facecolor','interp','edgecolor','none','facelighting','phong'); title(sprintf('t=%0.4f',time)); colormap jet; colorbar; view([0,0,1]);axis tight;drawnow
-%  end
    
 end % End of time step
 
+%End time calculation
 tEnd = toc(tStart);
+
+%Plot final result
+uplot(1:nx+1,1:ny+1)=0.5*(u(1:nx+1,2:ny+2)+u(1:nx+1,1:ny+1)); % uplot stores x-velocity at all points element corners 
+vplot(1:nx+1,1:ny+1)=0.5*(v(2:nx+2,1:ny+1)+v(1:nx+1,1:ny+1)); % vplot stores y-velocity at all points element corners
+figure(1); 
+vm = sqrt(uplot'.*uplot' + vplot'.*vplot'); 
+surf(x,y,vm,'facecolor','interp','edgecolor','none','facelighting','phong'); title('final velocity contour (MATLAB)'); colormap jet; colorbar; view([0,0,1]);axis tight;drawnow
+
 fprintf("The time taken is: %.16f\n",tEnd);
 fprintf("\n\n");
 
